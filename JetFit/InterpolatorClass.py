@@ -50,7 +50,7 @@ class InterpolatorClass:
         ### Due to some reasons, we need to convert bytes to string. 
         self._Axis['Axis'] = np.array([x.decode("utf-8") for x in self._Axis['Axis']])
         Data.close()
-    
+
     
     def _SetScale(self, LogTable=True,LogAxis=['tau']):
         '''
@@ -85,10 +85,13 @@ class InterpolatorClass:
         from scipy.interpolate import RegularGridInterpolator
 
         Axes = [self._Axis[key] for key in self._Axis['Axis']]
-        self._f_peak = RegularGridInterpolator(Axes, self._Table['f_peak'])
-        self._f_nu_c = RegularGridInterpolator(Axes, self._Table['f_nu_c'])
-        self._f_nu_m = RegularGridInterpolator(Axes, self._Table['f_nu_m'])
+        #print(Axes[0][:])
+        self._f_peak = RegularGridInterpolator(Axes, self._Table['f_peak'], method='linear')
+        self._f_nu_c = RegularGridInterpolator(Axes, self._Table['f_nu_c'], method='linear')
+        self._f_nu_m = RegularGridInterpolator(Axes, self._Table['f_nu_m'], method='linear')
     
+        #print( self._f_peak(0,0) )
+
     ### Public Function
     def GetTableInfo(self):
         '''
@@ -112,7 +115,6 @@ class InterpolatorClass:
         '''
 
         ScaledPosition = Position.copy()
-
         ### convert linear scale to log scale
         for key in self._Axis['LogAxis']:
             idx = np.where(self._Axis['Axis'] == key)[0][0]
@@ -120,16 +122,31 @@ class InterpolatorClass:
 
         ### When lorentz factor is low and observation time is ealry, there is no detection, which is represented by nans. 
         try:
+        
             if self._Table['LogTable']:
                 f_peak = np.exp(self._f_peak(ScaledPosition))
                 f_nu_c = np.exp(self._f_nu_c(ScaledPosition))
                 f_nu_m = np.exp(self._f_nu_m(ScaledPosition))
+            #print("here")
+
+                ### f_ values for table with one value of eta0 and gammaB
+                #f_peak = np.exp(self._Table['f_peak'][:,0,0,8])
+                #f_nu_c = np.exp(self._Table['f_nu_c'][:,0,0,8])
+                #f_nu_m = np.exp(self._Table['f_nu_m'][:,0,0,8])
             else:
+                #print("no here")
                 np.seterr(all='ignore')
                 f_peak = self._f_peak(ScaledPosition)
                 f_nu_c = self._f_nu_c(ScaledPosition)
                 f_nu_m = self._f_nu_m(ScaledPosition)
+                #print("no here")
+
+                ### f_ values for table with one value of eta0 and gammaB
+                #f_peak = self._Table['f_peak'][:,0,0,8]
+                #f_nu_c = self._Table['f_nu_c'][:,0,0,8]
+                #f_nu_m = self._Table['f_nu_m'][:,0,0,8]
                 np.seterr(all='raise')
+            
             return f_peak, f_nu_c, f_nu_m
         except:
             Nans = [np.nan for x in range(len(Position))]

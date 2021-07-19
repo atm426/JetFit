@@ -5,7 +5,7 @@ This module contains the FluxGeneratorClass, which generates synthetic light cur
 
 import numpy as np
 import h5py as h5
-from InterpolatorClass import InterpolatorClass
+from .InterpolatorClass import InterpolatorClass
 
 class FluxGeneratorClass:
     '''
@@ -27,6 +27,7 @@ class FluxGeneratorClass:
         '''
         self._Interpolator = InterpolatorClass(Table, LogTable=LogTable, LogAxis=LogAxis)
         self.TableInfo = self._Interpolator.GetTableInfo()
+        
 
     ### Public Function
     def GetTaus(self, Times, P):
@@ -55,21 +56,30 @@ class FluxGeneratorClass:
         '''
 
         Position = np.array([[tau, P['Eta0'], P['GammaB'], P['theta_obs']]  for tau in Taus])
+        #print(Position)
         f_peak, f_nu_c, f_nu_m = self._Interpolator.GetValue(Position)
+        #print(f_peak, f_nu_c, f_nu_m)
+        #print(Position)
 
-        if np.isnan(f_peak[0]):
-            return f_peak, f_nu_c, f_nu_m
+        #if np.isnan(f_peak[0]):
+        #   return f_peak, f_nu_c, f_nu_m
 
-        else:    
-            f1 = (1+P['z'])/(P['dL']*P['dL'])*(P['p']-1)/(3.*P['p']-1.)*P['E']*P['n']**0.5*P['epsb']**0.5*P['xiN']
-            f2 = 1./(1+P['z'])*P['E']**(-2./3.)*P['n']**(-5./6.)*P['epsb']**(-3./2.)
-            f3 = 1./(1+P['z'])*(P['p']-2.)**2/(P['p']-1.)**2*P['n']**(1./2.)*P['epse']**2*P['epsb']**(1./2.)*P['xiN']**(-2)
+        #else:    
+        f1 = (1+P['z'])/(P['dL']*P['dL'])*(P['p']-1)/(3.*P['p']-1.)*P['E']*P['n']**0.5*P['epsb']**0.5*P['xiN']
+        f2 = 1./(1+P['z'])*P['E']**(-2./3.)*P['n']**(-5./6.)*P['epsb']**(-3./2.)
+        f3 = 1./(1+P['z'])*(P['p']-2.)**2/(P['p']-1.)**2*P['n']**(1./2.)*P['epse']**2*P['epsb']**(1./2.)*P['xiN']**(-2)
+        
+        f_peak = np.array(f_peak) ; f_nu_c = np.array(f_nu_c) ; f_nu_m = np.array(f_nu_m)
 
-            F_peak = f1*f_peak
-            nu_c = f2*f_nu_c
-            nu_m = f3*f_nu_m
+        f_peak[~np.isnan(f_peak)] *= f1
+        f_nu_c[~np.isnan(f_nu_c)] *= f2
+        f_nu_m[~np.isnan(f_nu_m)] *= f3
+        
+        #F_peak = f_peak
+        #nu_c = f2*f_nu_c
+        #nu_m = f3*f_nu_m
 
-            return F_peak, nu_c, nu_m
+        return f_peak, f_nu_c, f_nu_m
     
     
     def GetSpectral(self, Times, Freqs, P):
@@ -86,37 +96,36 @@ class FluxGeneratorClass:
         Taus = self.GetTaus(Times, P)
         F_peak, nu_c, nu_m = self.GetTransformedValue(Taus, P)
 
-        if np.isnan(F_peak[0]):
-            return F_peak
-        else:        
-            IdxSlow = (nu_m < nu_c)
-            IdxSlow1 = IdxSlow * (Freqs < nu_m)
-            IdxSlow2 = IdxSlow * (Freqs >= nu_m) * (Freqs < nu_c)
-            IdxSlow3 = IdxSlow * (Freqs >= nu_c)
-            IdxFast1 = (~IdxSlow) * (Freqs < nu_c)
-            IdxFast2 = (~IdxSlow) * (Freqs >= nu_c) * (Freqs < nu_m)
-            IdxFast3 = (~IdxSlow) * (Freqs >= nu_m)
-
-            inu_m = 1.0/nu_m
-            inu_c = 1.0/nu_c
-
-            p = P['p']
-            output = np.zeros(len(Times))
-            output[IdxSlow1] = np.power(Freqs[IdxSlow1] * inu_m[IdxSlow1], 1.0/3.0)
-            output[IdxSlow2] = np.power(Freqs[IdxSlow2] * inu_m[IdxSlow2], 0.5-0.5*p)
-            output[IdxSlow3] = np.power(nu_c[IdxSlow3] * inu_m[IdxSlow3], 0.5-0.5*p) * np.power(Freqs[IdxSlow3] * inu_c[IdxSlow3], -0.5*p)
-
-            output[IdxFast1] = np.power(Freqs[IdxFast1] * inu_c[IdxFast1], 1.0/3.0)
-            output[IdxFast2] = np.power(Freqs[IdxFast2] * inu_c[IdxFast2], -0.5)
-            output[IdxFast3] = np.power(nu_m[IdxFast3] * inu_c[IdxFast3], -0.5) * np.power(Freqs[IdxFast3] * inu_m[IdxFast3], -0.5*p)
-
-            Spectral = F_peak * output
-
-            return Spectral
+        #if np.isnan(F_peak[0]):
+        #    return F_peak
+        #else:        
+        IdxSlow = (nu_m < nu_c)
+        IdxSlow1 = IdxSlow * (Freqs < nu_m)
+        IdxSlow2 = IdxSlow * (Freqs >= nu_m) * (Freqs < nu_c)
+        IdxSlow3 = IdxSlow * (Freqs >= nu_c)
+        IdxFast1 = (~IdxSlow) * (Freqs < nu_c)
+        IdxFast2 = (~IdxSlow) * (Freqs >= nu_c) * (Freqs < nu_m)
+        IdxFast3 = (~IdxSlow) * (Freqs >= nu_m)
+        
+        inu_m = 1.0/nu_m
+        inu_c = 1.0/nu_c
+        
+        p = P['p']
+        output = np.zeros(len(Times))
+        output[IdxSlow1] = np.power(Freqs[IdxSlow1] * inu_m[IdxSlow1], 1.0/3.0)
+        output[IdxSlow2] = np.power(Freqs[IdxSlow2] * inu_m[IdxSlow2], 0.5-0.5*p)
+        output[IdxSlow3] = np.power(nu_c[IdxSlow3] * inu_m[IdxSlow3], 0.5-0.5*p) * np.power(Freqs[IdxSlow3] * inu_c[IdxSlow3], -0.5*p)
+            
+        output[IdxFast1] = np.power(Freqs[IdxFast1] * inu_c[IdxFast1], 1.0/3.0)
+        output[IdxFast2] = np.power(Freqs[IdxFast2] * inu_c[IdxFast2], -0.5)
+        output[IdxFast3] = np.power(nu_m[IdxFast3] * inu_c[IdxFast3], -0.5) * np.power(Freqs[IdxFast3] * inu_m[IdxFast3], -0.5*p)
+        
+        Spectral = F_peak * output
+        return Spectral
 
     def GetIntegratedFlux(self, Times, Freqs, P):
         '''
-        Get synthetic light curve through interpolation. Spectral is constructed as power laws. (Sari+ 1998)
+        Get synthetIdxSlow1 = IdxSlow * (Freqs < nu_m)ic light curve through interpolation. Spectral is constructed as power laws. (Sari+ 1998)
 
         Args:
             Times (Array): observational time in second

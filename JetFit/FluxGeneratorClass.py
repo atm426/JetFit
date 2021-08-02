@@ -60,10 +60,11 @@ class FluxGeneratorClass:
         f_peak, f_nu_c, f_nu_m = self._Interpolator.GetValue(Position)
         #print(f_peak, f_nu_c, f_nu_m)
         #print(Position)
-
+        
+        ### removing this because it doesn't return proper scaled values
         #if np.isnan(f_peak[0]):
         #   return f_peak, f_nu_c, f_nu_m
-
+        
         #else:    
         f1 = (1+P['z'])/(P['dL']*P['dL'])*(P['p']-1)/(3.*P['p']-1.)*P['E']*P['n']**0.5*P['epsb']**0.5*P['xiN']
         f2 = 1./(1+P['z'])*P['E']**(-2./3.)*P['n']**(-5./6.)*P['epsb']**(-3./2.)
@@ -96,6 +97,7 @@ class FluxGeneratorClass:
         Taus = self.GetTaus(Times, P)
         F_peak, nu_c, nu_m = self.GetTransformedValue(Taus, P)
 
+        ### removing this because it doesn't return proper scaled values
         #if np.isnan(F_peak[0]):
         #    return F_peak
         #else:        

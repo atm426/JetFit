@@ -1,3 +1,4 @@
+### modules
 import numpy as np
 import emcee as em
 import matplotlib.pyplot as plt
@@ -5,18 +6,23 @@ import pandas as pd
 
 from JetFit import FitterClass
 
-### Parameters
+### Table, Info, FitBounds
+
+## Spectral table to use
 Table = "./Table.h5"
 
+## 'Fit' : which model parameters are sampled in the MCMC
+## 'Log' : parameters measured in Log scale
+## 'FluxType': Only 'Spectral' , 'Integrated' flux was never finished
 Info = {
     'Fit': np.array(['Eta0', 'GammaB','theta_obs']),         # Fitting parameters (Parameter names see P dictionary below)
     'Log': np.array(['E','n','epse','epsb']),        # Set parameters in log scale
     'LogType': 'Log10',                              # Log scale type: Log10 or Log
     'ThetaObsPrior': 'Sine',                         # Prior for observation angle: Sine or Uniform
-    'FluxType': 'Spectral'                           # Flux type: Spectral or Integrated
+    'FluxType': 'Spectral'                           # Flux type: Spectral
 }
 
-# Bounds for parameters. All in linear scale.
+## Bounds for parameters. All in linear scale.
 FitBound = {
     'E': np.array([1e-6, 1e3]),
     'n': np.array([1e-6, 1e3]),
@@ -27,7 +33,6 @@ FitBound = {
     'epsb': np.array([1e-6,1.]),
     'p': np.array([2.,4.])
 }
-
 
 # P:
 # For non-fiting parameters, P set default values. 
@@ -51,14 +56,11 @@ P = {
     'z': 0.00973
 }
 
-
-
-
 ### parameters for fitter.
 # Path to observation data.
 GRB = './GW170817.csv'
 
-# for demostaration
+# For demonstration
 SamplerType = "ParallelTempered"
 NTemps = 2
 NWalkers = 10

@@ -1,28 +1,25 @@
-### modules
 import numpy as np
+import kombine as kb
 import emcee as em
 import matplotlib.pyplot as plt
 import pandas as pd
 
+### imports FitterClass -> FluxGeneratorClass -> InterpolatorClass
 from JetFit import FitterClass
 
-### Table, Info, FitBounds
-
-## Spectral table to use
+### Spectral Table
 Table = "./Table.h5"
 
-## 'Fit' : which model parameters are sampled in the MCMC
-## 'Log' : parameters measured in Log scale
-## 'FluxType': Only 'Spectral' , 'Integrated' flux was never finished
+### Info regarding parameters and the fitting
 Info = {
-    'Fit': np.array(['Eta0', 'GammaB','theta_obs']),         # Fitting parameters (Parameter names see P dictionary below)
+    'Fit': np.array(['Eta0', 'GammaB','theta_obs']), # Fitting parameters (Parameter names see P dictionary below)
     'Log': np.array(['E','n','epse','epsb']),        # Set parameters in log scale
     'LogType': 'Log10',                              # Log scale type: Log10 or Log
     'ThetaObsPrior': 'Sine',                         # Prior for observation angle: Sine or Uniform
-    'FluxType': 'Spectral'                           # Flux type: Spectral
+    'FluxType': 'Spectral'                           # Flux type: Spectral or Integrated
 }
 
-## Bounds for parameters. All in linear scale.
+# Bounds for parameters. All in linear scale.
 FitBound = {
     'E': np.array([1e-6, 1e3]),
     'n': np.array([1e-6, 1e3]),
@@ -33,9 +30,8 @@ FitBound = {
     'epsb': np.array([1e-6,1.]),
     'p': np.array([2.,4.])
 }
-
 # P:
-# For non-fiting parameters, P set default values. 
+# For non-fiting parameters, set P to default values. 
 # For fitting paramters, P:
 #  1. If Explore == True: Fitting parameters are randomly distributed in whole parameter space.
 #  2. If Explore != True: Fitting parameters are randomly distributed around maximum posterior region, indicated by values in P. 
@@ -60,7 +56,7 @@ P = {
 # Path to observation data.
 GRB = './GW170817.csv'
 
-# For demonstration
+# for demostaration
 SamplerType = "ParallelTempered"
 NTemps = 2
 NWalkers = 10
@@ -68,6 +64,9 @@ Threads = 8
 
 BurnLength = 20
 RunLength = 20
+
+# flag for Kombine
+UseKombine = False
 
 ## For GW170817 and bellow parameters, it takes ~24 hours to finish.
 ## For quick run, values of the parameters can be modified accordingly.
@@ -82,7 +81,11 @@ RunLength = 20
 
 ### Fitter
 # Initialize Fitter
-Fitter = FitterClass(Table, Info, FitBound, P, Explore = Explore)
+
+
+
+
+Fitter = FitterClass(Table, Info, FitBound, P, Explore = Explore, UseKombine=UseKombine)
 # LoadData
 DF = pd.read_csv(GRB)
 Times, TimeBnds, Fluxes, FluxErrs, Freqs = DF['Times'].values, DF['TimeBnds'].values, DF['Fluxes'].values, DF['FluxErrs'].values, DF['Freqs'].values

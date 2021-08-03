@@ -6,7 +6,8 @@ This module contains the ScaleFit class for boosted fireball model. It depends o
 import numpy as np
 import pandas as pd
 import emcee as em
-from .FluxGeneratorClass import FluxGeneratorClass
+import kombine as kb
+from FluxGeneratorClass import FluxGeneratorClass
 import sys
 
 
@@ -25,6 +26,10 @@ class FitterClass:
     _SamplerType = None
     _Position0 = None
     _Position1 = None
+    # for Kombine
+    _UseKombine = None
+    _NWalkers = None
+    _BurnLength = None
 
     ### Public: Interpolator and Sampler
     FluxGenerator = None
@@ -123,7 +128,7 @@ class FitterClass:
         self.FluxErrs = FluxErrs
         self.Freqs = Freqs
 
-    def GetSampler(self, SamplerType, NTemps, NWalkers, Threads):
+    def GetSampler(self, SamplerType, NTemps, NWalkers, Threads, UseKombine=False):
         '''
         Set up sampler and position.
         Args:
@@ -132,13 +137,21 @@ class FitterClass:
             NWalkers (int): # of walkers
             Threads (int): # of threads
         '''
-
+        
+        ## Saving values that are needed later
         self._SamplerType = SamplerType
+        self._UseKombine = UseKombine
+        self._NWalkers = NWalkers
+        
         if SamplerType == "Ensemble":
-            self._Sampler = em.EnsembleSampler(NWalkers, self._FitDim, LogPosterior, threads=Threads,
-                                              args=[self._FitBound, self._Info, self._P, self.FluxGenerator, self.Times, self.Freqs, self.Fluxes, self.FluxErrs])
-            self._Position0 = self._InitialBound[:,0] + (self._InitialBound[:,1]-self._InitialBound[:,0])*np.random.rand(NWalkers, self._FitDim)
-        else:
+            if UseKombine:
+                self._Sampler = kb.Sampler(NWalkers, self._FitDim, LogPosterior, args = [self._FitBound, self._Info, self._P, self.FluxGenerator, self.Times, self.Freqs, self.Fluxes, self.FluxErrs])
+                self._Position0 = self._InitialBound[:,0] + (self._InitialBound[:,1]-self._InitialBound[:,0])*np.random.rand(NWalkers, self._FitDim)
+            else:        
+                self._Sampler = em.EnsembleSampler(NWalkers, self._FitDim, LogPosterior, threads=Threads,
+                                                  args=[self._FitBound, self._Info, self._P, self.FluxGenerator, self.Times, self.Freqs, self.Fluxes, self.FluxErrs])
+                self._Position0 = self._InitialBound[:,0] + (self._InitialBound[:,1]-self._InitialBound[:,0])*np.random.rand(NWalkers, self._FitDim)
+        else: # sampler uses parallel tempering
             self._Sampler = em.PTSampler(NTemps, NWalkers, self._FitDim, LogLike, LogPrior, threads=Threads,
                 loglargs=[self._Info, self._P, self.FluxGenerator, self.Times, self.Freqs, self.Fluxes, self.FluxErrs],
                 logpargs=[self._FitBound, self._Info]
@@ -159,6 +172,9 @@ class FitterClass:
         from pickle import dump, HIGHEST_PROTOCOL
         from time import time
 
+        ## Saving value that we need for later
+        self._BurnLength = BurnLength
+        
         ### Run sampler
         Start = time(); i=0
         for StepResult in self._Sampler.sample(self._Position0, iterations=BurnLength, storechain=True):
@@ -173,9 +189,13 @@ class FitterClass:
 
         ### Save Burn in results
         BurnInResult = {}
-        if self._SamplerType is 'Ensemble':
+        if self._SamplerType == 'Ensemble':
             BurnInResult['Chain'] = self._Sampler.chain
-            BurnInResult['LnProbability'] = self._Sampler.lnprobability
+            # UseKombine condition because attribute is a different name
+            if self._UseKombine:
+                BurnInResult['LnProbability'] = self._Sampler.lnpost
+            else:
+                BurnInResult['LnProbability'] = self._Sampler.lnprobability
             BurnInResult['AcceptanceFraction'] = self._Sampler.acceptance_fraction
         else:
             BurnInResult['Chain'] = self._Sampler.chain[0]
@@ -202,7 +222,10 @@ class FitterClass:
         from time import time
 
         ### Run sampler
-        self._Sampler.reset()
+        ## Reset chain when using emcee
+        if not self._UseKombine:
+            self._Sampler.reset()
+        # Kombine sampler has no reset()
         Start = time(); i=0
         for StepResult in self._Sampler.sample(self._Position1, iterations=RunLength, storechain=True):
             i += 1
@@ -213,10 +236,17 @@ class FitterClass:
         sys.stdout.write('\n')
         ### Save results
         Result = {}
-        if self._SamplerType is 'Ensemble':
-            Result['Chain'] = self._Sampler.chain
-            Result['LnProbability'] = self._Sampler.lnprobability
-            Result['AcceptanceFraction'] = self._Sampler.acceptance_fraction
+        if self._SamplerType == 'Ensemble':
+            if self._UseKombine:
+                # Saving non-BurnIn part of the chain
+                Result['Chain'] = self._Sampler.chain[self._BurnLength:]
+                Result['LnProbability'] = self._Sampler.lnpost[self._BurnLength:]
+                Result['AcceptanceFraction'] = self._Sampler.acceptance_fraction[self._BurnLength:]
+                
+            else:
+                Result['Chain'] = self._Sampler.chain
+                Result['LnProbability'] = self._Sampler.lnprobability
+                Result['AcceptanceFraction'] = self._Sampler.acceptance_fraction
         else:
             Result['Chain'] = self._Sampler.chain[0]
             Result['LnProbability'] = self._Sampler.lnprobability[0]
@@ -295,6 +325,7 @@ def LogLike(FitParameter, Info, P, FluxGenerator, Times, Freqs, Fluxes, FluxErrs
     ### To do: Integrated flux
     if Info['FluxType'] == 'Spectral':
         FluxesModel = FluxGenerator.GetSpectral(Times, Freqs, P)
+        #print("DLKFJ:")
     elif Info['FluxType'] == 'Integrated':
         FluxesModel = FluxGenerator.GetIntegratedFlux(Times, Freqs, P)
     else:

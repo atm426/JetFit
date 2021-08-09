@@ -56,7 +56,10 @@ P = {
 # Path to observation data.
 GRB = './GW170817.csv'
 
-# for demostaration
+# flag for Kombine
+UseKombine = False
+# to use Kombine set SamplerType to "Ensemble"
+# NTemps & NThreads = 1
 SamplerType = "ParallelTempered"
 NTemps = 2
 NWalkers = 10
@@ -64,9 +67,6 @@ Threads = 8
 
 BurnLength = 20
 RunLength = 20
-
-# flag for Kombine
-UseKombine = False
 
 ## For GW170817 and bellow parameters, it takes ~24 hours to finish.
 ## For quick run, values of the parameters can be modified accordingly.

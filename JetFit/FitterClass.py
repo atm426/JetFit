@@ -151,6 +151,7 @@ class FitterClass:
                 self._Sampler = em.EnsembleSampler(NWalkers, self._FitDim, LogPosterior, threads=Threads,
                                                   args=[self._FitBound, self._Info, self._P, self.FluxGenerator, self.Times, self.Freqs, self.Fluxes, self.FluxErrs])
                 self._Position0 = self._InitialBound[:,0] + (self._InitialBound[:,1]-self._InitialBound[:,0])*np.random.rand(NWalkers, self._FitDim)
+                
         else: # sampler uses parallel tempering
             self._Sampler = em.PTSampler(NTemps, NWalkers, self._FitDim, LogLike, LogPrior, threads=Threads,
                 loglargs=[self._Info, self._P, self.FluxGenerator, self.Times, self.Freqs, self.Fluxes, self.FluxErrs],
@@ -171,21 +172,22 @@ class FitterClass:
 
         from pickle import dump, HIGHEST_PROTOCOL
         from time import time
-
-        ## Saving value that we need for later
-        self._BurnLength = BurnLength
         
         ### Run sampler
-        Start = time(); i=0
-        for StepResult in self._Sampler.sample(self._Position0, iterations=BurnLength, storechain=True):
-            i += 1
-            DeltaTime = time() - Start
-            Label = "%02d m %02d s" %(DeltaTime/60, DeltaTime%60)
-            sys.stdout.write('\r Burning ... %.1f%% Time=%s' %((100.0*i)/(BurnLength), Label))
-            sys.stdout.flush()
-        sys.stdout.write('\n')
+        if self._UseKombine:
+            self._Sampler.burnin(self._Position0, verbose=True)
+            self._Position1 = self._Sampler.chain[-1]
+        else:
+            Start = time(); i=0
+            for StepResult in self._Sampler.sample(self._Position0, iterations=BurnLength, storechain=True):
+                i += 1
+                DeltaTime = time() - Start
+                Label = "%02d m %02d s" %(DeltaTime/60, DeltaTime%60)
+                sys.stdout.write('\r Burning ... %.1f%% Time=%s' %((100.0*i)/(BurnLength), Label))
+                sys.stdout.flush()
+            sys.stdout.write('\n')
         ### Save postion to self._Position1, which is the starting position for later run.
-        self._Position1 = StepResult[0]
+            self._Position1 = StepResult[0]
 
         ### Save Burn in results
         BurnInResult = {}
@@ -225,6 +227,8 @@ class FitterClass:
         ## Reset chain when using emcee
         if not self._UseKombine:
             self._Sampler.reset()
+        else:
+            BurnLength = self._Sampler.chain.shape[0]
         # Kombine sampler has no reset()
         Start = time(); i=0
         for StepResult in self._Sampler.sample(self._Position1, iterations=RunLength, storechain=True):
@@ -239,9 +243,9 @@ class FitterClass:
         if self._SamplerType == 'Ensemble':
             if self._UseKombine:
                 # Saving non-BurnIn part of the chain
-                Result['Chain'] = self._Sampler.chain[self._BurnLength:]
-                Result['LnProbability'] = self._Sampler.lnpost[self._BurnLength:]
-                Result['AcceptanceFraction'] = self._Sampler.acceptance_fraction[self._BurnLength:]
+                Result['Chain'] = self._Sampler.chain[BurnLength:]
+                Result['LnProbability'] = self._Sampler.lnpost[BurnLength:]
+                Result['AcceptanceFraction'] = self._Sampler.acceptance_fraction[BurnLength:]
                 
             else:
                 Result['Chain'] = self._Sampler.chain

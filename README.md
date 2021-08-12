@@ -30,6 +30,6 @@ JetFit package consists of three classes: Interpolator, FluxGenerator and Fitter
  ## ScaleFitClass:
   * `_SetFitParameter`: set up ScaleFit, e.g. parameter scales and parameter bounds.
   * `LoadData`: load observational data.
-  * `GetSampler`: initialize sampler from  emcee package.
+  * `GetSampler`: initialize sampler from  emcee or kombine package.
   * `BurnIn`: burn in and prepare for sampling.
   * `RunSampler`: run sampling procedure and save results to local drive.
